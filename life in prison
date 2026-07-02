@@ -1,3 +1,54 @@
+-- Single-script optimized for Roblox Executors (Absolute Screen-Edge Fix)
+local CoreGui = game:GetService("CoreGui")
+
+-- 1. Anti-Stacking Cleanup
+local existingGui = CoreGui:FindFirstChild("ExecutorScreenDecalGui")
+if existingGui then
+    existingGui:Destroy()
+end
+
+-- 2. Create the protected container inside CoreGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ExecutorScreenDecalGui"
+screenGui.ResetOnSpawn = false
+
+-- ABSOLUTE EDGE FIX: This forces the UI to ignore Roblox's top-bar restriction boundaries
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = CoreGui
+
+-- Generic configuration function to avoid repeating code
+local function configureFlagBar(name, anchorPoint, position)
+    local imageLabel = Instance.new("ImageLabel")
+    imageLabel.Name = name
+    imageLabel.Image = "rbxassetid://964998527"
+    
+    -- Setup sizing and positions based on parameters
+    imageLabel.AnchorPoint = anchorPoint
+    imageLabel.Position = position
+    imageLabel.Size = UDim2.new(1, 0, 0, 55) -- 55 pixels tall
+    
+    -- Formatting, tiling, and 80% transparency
+    imageLabel.BackgroundTransparency = 1
+    imageLabel.ScaleType = Enum.ScaleType.Tile
+    imageLabel.TileSize = UDim2.new(0, 80, 0, 55)
+    imageLabel.ImageTransparency = 0.8
+    
+    imageLabel.Parent = screenGui
+end
+
+-- 3. Create the Bottom Bar (Anchored at bottom-left, positioned at bottom-left)
+configureFlagBar(
+    "BottomDecal", 
+    Vector2.new(0, 1), 
+    UDim2.new(0, 0, 1, 0)
+)
+
+-- 4. Create the Top Bar (Anchored at top-left, positioned at top-left)
+configureFlagBar(
+    "TopDecal", 
+    Vector2.new(0, 0), 
+    UDim2.new(0, 0, 0, 0)
+)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -66,7 +117,7 @@ uiListLayout.Padding = UDim.new(0, 4)
 uiListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
 uiListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 
-local buttonNames = {"Larp fly [G]", "Larp [H]", "Larp Tree [B/Z]", "Team check [K]", "Wallcheck [J]", "Fps boost [P]"}
+local buttonNames = {"Larp fly [Q]", "Larp [H]", "Larp Tree [B/Z]", "Team check [K]", "Wallcheck [J]", "Fps boost [P]"}
 local menuButtons = {}
 
 for index, name in ipairs(buttonNames) do
@@ -90,7 +141,7 @@ end
 -- SYSTEM UTILITIES & GLOBAL CHEAT STATES
 -- =========================================================================
 local flying = false
-local flySpeed = 60 
+local flySpeed = 85
 local camera = workspace.CurrentCamera
 local flyStabilizer = nil
 
@@ -101,7 +152,7 @@ local activeTracers = {}
 local larpTreeActive = false
 local lockingOn = false
 local currentLockedTarget = nil 
-local maxFovRadius = 125 
+local maxFovRadius = 125
 
 local teamCheckActive = false
 local wallCheckActive = false
@@ -432,7 +483,7 @@ menuButtons[6].MouseButton1Click:Connect(toggleFpsBoost)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
-	if input.KeyCode == Enum.KeyCode.G then
+	if input.KeyCode == Enum.KeyCode.Q then
 		toggleFly()
 	elseif input.KeyCode == Enum.KeyCode.H then
 		toggleLarpEsp()
@@ -454,3 +505,218 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
 		lockingOn = false
 	end
 end)
+
+-- Single-script optimized for Roblox Executors (Field of View Modifier)
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local camera = Workspace.CurrentCamera or Workspace:WaitForChild("Camera")
+
+-- Define the target FOV
+local TARGET_FOV = 120
+
+-- 1. Disconnect any older loops if the script is re-executed
+if _G.FOVLoopConnection then
+    _G.FOVLoopConnection:Disconnect()
+    _G.FOVLoopConnection = nil
+end
+
+-- 2. Apply instantly
+camera.FieldOfView = TARGET_FOV
+
+-- 3. Force-lock the FOV on every frame to prevent game-script overwrites
+_G.FOVLoopConnection = RunService.RenderStepped:Connect(function()
+    if camera then
+        camera.FieldOfView = TARGET_FOV
+    else
+        -- Re-assign camera if the player resets or game changes it
+        camera = Workspace.CurrentCamera
+    end
+end)
+
+-----------------------------------------------------------------------------
+-----------------------JEWISH GUN TEXTURE------------------------------------
+-----------------------------------------------------------------------------
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- The asset ID provided by the user converted to Roblox format
+local CUSTOM_TEXTURE_ID = "rbxassetid://964998527"
+
+-- Applied to every visual element found inside a tool
+local function applyCustomTexture(tool)
+	if not tool:IsA("Tool") then return end
+	
+	for _, child in ipairs(tool:GetDescendants()) do
+		
+		-- 1. If it is a modern MeshPart, remove its custom mesh visual styling and force your texture
+		if child:IsA("MeshPart") then
+			child.TextureID = CUSTOM_TEXTURE_ID
+			child.Color = Color3.fromRGB(255, 255, 255) -- Keeps texture colors true
+			child.Material = Enum.Material.SmoothPlastic
+			
+		-- 2. If it is an old-school SpecialMesh, apply the texture ID directly to it
+		elseif child:IsA("SpecialMesh") then
+			child.TextureId = CUSTOM_TEXTURE_ID
+			
+		-- 3. Replace any pre-existing individual Decals/Textures with your custom one
+		elseif child:IsA("Decal") or child:IsA("Texture") then
+			child.Texture = CUSTOM_TEXTURE_ID
+			
+		-- 4. If it is a basic structural geometric block without a pre-built texture space
+		elseif child:IsA("BasePart") then
+			child.Color = Color3.fromRGB(255, 255, 255)
+			child.Material = Enum.Material.SmoothPlastic
+			
+			-- Wrap the texture completely around flat surfaces so it shows up perfectly
+			-- checks if textures are already placed on the faces to avoid duplicates
+			local faces = {Enum.NormalId.Top, Enum.NormalId.Bottom, Enum.NormalId.Left, Enum.NormalId.Right, Enum.NormalId.Front, Enum.NormalId.Back}
+			for _, face in ipairs(faces) do
+				local textureName = "CustomWrap_" .. face.Name
+				if not child:FindFirstChild(textureName) then
+					local tex = Instance.new("Texture")
+					tex.Name = textureName
+					tex.Texture = CUSTOM_TEXTURE_ID
+					tex.Face = face
+					tex.StudsPerTileU = 2 -- Adjust these values if you want the image to stretch or tile differently
+					tex.StudsPerTileV = 2
+					tex.Parent = child
+				end
+			end
+		end
+	end
+end
+
+-- Monitor inventory (Backpack) changes
+local function setupInventoryMonitor(backpack)
+	if not backpack then return end
+	
+	-- Scan tools currently resting in the inventory
+	for _, item in ipairs(backpack:GetChildren()) do
+		applyCustomTexture(item)
+	end
+	
+	-- Catch new tools added to inventory mid-game
+	backpack.ChildAdded:Connect(function(child)
+		task.wait(0.1) -- Small delay to ensure all parts inside the tool have loaded properly
+		applyCustomTexture(child)
+	end)
+end
+
+-- Monitor equipped items (Tools currently being held by character)
+local function setupCharacterMonitor(character)
+	for _, item in ipairs(character:GetChildren()) do
+		applyCustomTexture(item)
+	end
+	
+	character.ChildAdded:Connect(function(child)
+		if child:IsA("Tool") then
+			applyCustomTexture(child)
+		end
+	end)
+end
+
+-- Initialize listeners for the Local Player
+task.spawn(function()
+	local backpack = LocalPlayer:WaitForChild("Backpack", 10)
+	setupInventoryMonitor(backpack)
+end)
+
+if LocalPlayer.Character then
+	setupCharacterMonitor(LocalPlayer.Character)
+end
+
+LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+	setupCharacterMonitor(newCharacter)
+	local backpack = LocalPlayer:WaitForChild("Backpack", 10)
+	setupInventoryMonitor(backpack)
+end)
+
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+
+-- Miku Asset Constants (Scaled to 0.15)
+local MIKU_MESH = "rbxassetid://7749007933"
+local MIKU_TEXTURE = "rbxassetid://7749008046"
+local TARGET_SCALE = Vector3.new(0.15, 0.15, 0.15)
+
+local function morphToolVisuals(item)
+	if not item:IsA("Tool") then return end
+
+	-- Find the real handle that the server requires
+	local realHandle = item:WaitForChild("Handle", 5)
+	if not realHandle or not realHandle:IsA("BasePart") then return end
+	
+	-- Skip if we already hid it and added Miku
+	if realHandle:FindFirstChild("MikuAttached") then return end
+
+	-- 1. Make the real server handle completely invisible
+	realHandle.Transparency = 1
+	
+	-- Hide any existing meshes or textures inside the real handle
+	for _, child in ipairs(realHandle:GetChildren()) do
+		if child:IsA("DataModelMesh") or child:IsA("Texture") then
+			if child:IsA("SpecialMesh") then
+				child.Scale = Vector3.new(0, 0, 0) -- Shrink old mesh out of sight
+			end
+		end
+	end
+
+	-- 2. Create a fake cosmetic part that ONLY your client sees
+	local fakeVisual = Instance.new("Part")
+	fakeVisual.Name = "MikuVisualPart"
+	fakeVisual.Size = Vector3.new(0.15, 0.15, 0.15) -- Matches part size to mesh scale
+	fakeVisual.Transparency = 0
+	fakeVisual.CanCollide = false
+	fakeVisual.Massless = true
+	
+	-- Put the Miku mesh inside the fake part
+	local specialMesh = Instance.new("SpecialMesh")
+	specialMesh.MeshType = Enum.MeshType.FileMesh
+	specialMesh.MeshId = MIKU_MESH
+	specialMesh.TextureId = MIKU_TEXTURE
+	specialMesh.Scale = TARGET_SCALE
+	specialMesh.Parent = fakeVisual
+
+	-- 3. Weld the fake Miku part directly onto the invisible real handle
+	local weld = Instance.new("Weld")
+	weld.Part0 = realHandle
+	weld.Part1 = fakeVisual
+	weld.C0 = CFrame.new(0, 0, 0) 
+	weld.Parent = fakeVisual
+
+	-- Place the fake part inside the tool
+	fakeVisual.Parent = item
+
+	-- Tag the real handle so the script doesn't loop infinitely
+	local tag = Instance.new("BoolValue")
+	tag.Name = "MikuAttached"
+	tag.Parent = realHandle
+end
+
+local function processTool(item)
+	if not item:IsA("Tool") then return end
+	task.spawn(function()
+		morphToolVisuals(item)
+	end)
+end
+
+-- Track Inventory (Backpack)
+local backpack = localPlayer:WaitForChild("Backpack")
+for _, item in ipairs(backpack:GetChildren()) do
+	processTool(item)
+end
+backpack.ChildAdded:Connect(processTool)
+
+-- Track Equipped (Character)
+local function trackCharacter(character)
+	for _, item in ipairs(character:GetChildren()) do
+		processTool(item)
+	end
+	character.ChildAdded:Connect(processTool)
+end
+
+if localPlayer.Character then
+	trackCharacter(localPlayer.Character)
+end
+localPlayer.CharacterAdded:Connect(trackCharacter)
